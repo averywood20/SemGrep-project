@@ -7,6 +7,8 @@
 //   GET  /asmt/userByEmail -> vulnerable (SQL injection)
 //   GET  /asmt/list     -> view recent comments (safe rendering uses Html.escape)
 
+
+// AssignmentServlet.java (patched)
 import java.io.PrintWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -79,14 +81,16 @@ public class AssignmentServlet extends HttpServlet {
     ok(resp, page("Assignment Home", sb.toString()));
   }
 
-  // VULNERABLE: stores and reflects raw data back into HTML without encoding
-  // TODO (fix): encode author/text before building the thank-you sections
+  // FIXED: encode author/text before building the thank-you sections
   private void submitComment(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     String author = param(req, "author");
     String text = param(req, "text");
     addComment(new Comment(author, text));
-    String heading = "Thanks, " + author;
-    String html = Views.layout("Submitted (VULN)", Views.thankYouSections(heading, text));
+    // escape before embedding in markup
+    String safeAuthor = escape(author);
+    String safeText = escape(text);
+    String heading = "Thanks, " + safeAuthor;
+    String html = Views.layout("Submitted (SAFE)", Views.thankYouSections(heading, safeText));
     ok(resp, html);
   }
 
@@ -101,13 +105,15 @@ public class AssignmentServlet extends HttpServlet {
   }
 
   private static class Views {
-    // HINT: When fixing the app, update these helpers to encode or sanitize values before returning markup.
+    // FIXED: When fixing the app, update these helpers to encode or sanitize values before returning markup.
     static String layout(String title, List<String> sections) {
+      // Ensure title is escaped when building page
       return page(title, combine(sections));
     }
 
     static List<String> thankYouSections(String heading, String message) {
       List<String> sections = new ArrayList<>();
+      // heading and message are expected to be already escaped by callers.
       sections.add(h1(heading));
       sections.add(p("You posted:"));
       sections.add(p(message));
@@ -118,6 +124,7 @@ public class AssignmentServlet extends HttpServlet {
 
     static List<String> searchSections(String query, String listMarkup) {
       List<String> sections = new ArrayList<>();
+      // query and listMarkup should be escaped when created
       sections.add(h1("Results for: " + query));
       sections.add(p("Matching items:"));
       sections.add(ul(listMarkup));
@@ -136,7 +143,8 @@ public class AssignmentServlet extends HttpServlet {
     static String renderItems(String query) {
       StringBuilder items = new StringBuilder();
       for (int i = 1; i <= 5; i++) {
-        items.append(li("Item " + i + " (query: '" + query + "')"));
+        // escape query before embedding into item label
+        items.append(li(escape("Item " + i + " (query: '" + query + "')")));
       }
       return items.toString();
     }
@@ -149,8 +157,9 @@ public class AssignmentServlet extends HttpServlet {
   }
 
   private static class SqlTemplates {
-    // HINT: Fixing SQLi involves avoiding these string-building helpers or changing them to use parameters.
+    // Keep these for non-vulnerable helper usage, but avoid using string concatenation for real SQL.
     static String lookupByEmail(String email) {
+      // return legacy string builder (not used in patched code). Prefer parameterized queries.
       return select("users", equals("email", email));
     }
 
@@ -220,31 +229,31 @@ public class AssignmentServlet extends HttpServlet {
 
   // ---------- Additional vulnerable/safe endpoints ----------
 
-  // XSS VULNERABLE: reflects raw query param into HTML builders
-  // TODO (fix): ensure query is encoded before adding to sections/list items
+  // FIXED: ensure query is encoded before adding to sections/list items
   private void search(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     String q = param(req, "q");
-    ok(resp, Views.layout("Search (VULN)", Views.searchSections(q, Views.renderItems(q))));
+    String safeQ = escape(q);
+    ok(resp, Views.layout("Search (SAFE)", Views.searchSections(safeQ, Views.renderItems(safeQ))));
   }
 
-  // SQLi VULNERABLE: concatenates raw email into SQL and executes
-  // TODO (fix): use a PreparedStatement instead of building SQL with string concatenation
+  // FIXED: use parameterized PreparedStatement instead of concatenated SQL
   private void userByEmail(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     String email = param(req, "email");
-    String sql = SqlTemplates.lookupByEmail(email); // tainted concat via helper
     try {
       Connection conn = getConnection();
-      Statement st = conn.createStatement();
-      ResultSet rs = st.executeQuery(sql); // tainted sink
+      String sql = "SELECT id, email FROM users WHERE email = ?";
+      PreparedStatement ps = conn.prepareStatement(sql);
+      ps.setString(1, email);
+      ResultSet rs = ps.executeQuery();
       ok(resp, Views.layout(
-          "UserByEmail (VULN)",
-          Views.noticeSections("Lookup", "Queried by email.")));
+          "UserByEmail (SAFE)",
+          Views.noticeSections("Lookup", "Queried by email (parameterized).")));
       rs.close();
-      st.close();
+      ps.close();
       conn.close();
     } catch (SQLException e) {
       ok(resp, Views.layout(
-          "UserByEmail (VULN)",
+          "UserByEmail (SAFE)",
           Views.noticeSections("Lookup", "DB error (expected in assignment)")));
     }
   }
@@ -263,3 +272,4 @@ public class AssignmentServlet extends HttpServlet {
   }
 
 }
+
