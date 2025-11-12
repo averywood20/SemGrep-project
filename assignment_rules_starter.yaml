@@ -1,0 +1,42 @@
+rules:
+  # Rule 1: Reflected XSS (taint mode)
+  - id: asmt-java-xss
+    message: "Reflected XSS: tainted user input reaches HTML response"
+    severity: ERROR
+    languages: [java]
+    # TODO(1): enable taint mode
+    # mode: taint
+    # TODO(2): add sources (user input)
+    # pattern-sources:
+    #   - pattern: 
+    # TODO(3): add sinks (HTML rendering)
+    # pattern-sinks:
+      #   - pattern: 
+    # TODO(4): add sanitizers (encoding)
+    # pattern-sanitizers:
+    #   - pattern: org.apache.commons.text.StringEscapeUtils.escapeHtml4($S)
+    metadata:
+      cwe: "CWE-79"
+      owasp: "A07:2021 Cross-Site Scripting (XSS)"
+      assignment: true
+
+  # Rule 2: SQL injection (taint mode)
+  - id: asmt-java-sqli
+    message: "SQL injection: tainted request parameter flows into SQL execution"
+    severity: ERROR
+    languages: [java]
+    # TODO(1): enable taint mode
+    # mode: taint
+    # TODO(2): add sources (user input)
+    # pattern-sources:
+    #   - pattern: 
+    # TODO(3): add sinks (SQL execution)
+    # pattern-sinks:
+    #   - pattern: 
+    # Optional: add sanitizers if modeling an allowlist function
+    # pattern-sanitizers:
+    #   - pattern: 
+    metadata:
+      cwe: "CWE-89"
+      owasp: "A03:2021 Injection"
+      assignment: true
