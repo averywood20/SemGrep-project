@@ -24,6 +24,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.text.StringEscapeUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import java.sql.*;
 
 @WebServlet(name = "AssignmentServlet", urlPatterns = {"/asmt/*"})
@@ -202,10 +203,9 @@ public class AssignmentServlet extends HttpServlet {
   }
 
   private void writeHtml(HttpServletResponse resp, String html) throws IOException {
+    String safeHtml = escape(html); 
     resp.setContentType("text/html;charset=UTF-8");
-    PrintWriter out = resp.getWriter();
-    // SINK for Semgrep: out.println($X)
-    out.println(html);
+    resp.getWriter().println(safeHtml);
   }
 
   // ---------- small utilities ----------
