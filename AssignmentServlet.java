@@ -203,9 +203,8 @@ public class AssignmentServlet extends HttpServlet {
   }
 
   private void writeHtml(HttpServletResponse resp, String html) throws IOException {
-    String safeHtml = escape(html); 
     resp.setContentType("text/html;charset=UTF-8");
-    resp.getWriter().println(safeHtml);
+    resp.getWriter().println(escape(html));
   }
 
   // ---------- small utilities ----------
